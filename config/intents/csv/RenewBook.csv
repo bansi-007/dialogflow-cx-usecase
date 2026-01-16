@@ -1,0 +1,11 @@
+Intent Display Name,Language,Phrase
+RenewBook,en,Renew my book
+,,Renew (The Great Gatsby)[@BookTitle, book_id]
+,,Extend my checkout
+,,I want to renew (To Kill a Mockingbird)[@BookTitle, book_id]
+,,Can I renew (1984)[@BookTitle, book_id]?
+,,Renew this book
+,,Extend the due date
+,,Renew my checkout
+,,Keep (The Great Gatsby)[@BookTitle, book_id] longer
+,,Renew all my books

@@ -1,0 +1,11 @@
+Intent Display Name,Language,Phrase
+BrowseBooks,en,Browse books
+,,Show me books
+,,What books do you have?
+,,Browse the catalog
+,,Show available books
+,,What's available?
+,,Browse by (Fiction)[@Genre, genre]
+,,Show me (Fiction)[@Genre, genre] books
+,,What new books do you have?
+,,Browse library collection

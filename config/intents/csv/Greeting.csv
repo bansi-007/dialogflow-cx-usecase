@@ -1,0 +1,11 @@
+Intent Display Name,Language,Phrase
+Greeting,en,Hello
+,,Hi there
+,,Hey
+,,Good morning
+,,Good afternoon
+,,Good evening
+,,Greetings
+,,Hi, my name is (John)[@sys.person, name]
+,,Hello, I'm (Sarah)[@sys.person, name]
+,,Hey, call me (Mike)[@sys.person, name]

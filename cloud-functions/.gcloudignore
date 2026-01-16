@@ -14,3 +14,7 @@ build/
 .coverage
 .env
 *.log
+.DS_Store
+*.md
+.git/
+.gitignore

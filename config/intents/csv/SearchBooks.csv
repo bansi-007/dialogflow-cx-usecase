@@ -1,0 +1,21 @@
+Intent Display Name,Language,Phrase
+SearchBooks,en,Search for books
+,,Find a book
+,,I'm looking for a book
+,,Do you have (The Great Gatsby)[@BookTitle, book_title]?
+,,Search the catalog
+,,Look for books
+,,I need a book
+,,Show me books
+,,What books do you have?
+,,Book search
+,,Catalog search
+,,Look up a book
+,,Find me a book
+,,Search library catalog
+,,I want to search for books
+,,Help me find a book
+,,Can you help me find a book?
+,,Search books by title
+,,Find books by author
+,,I want to search for books

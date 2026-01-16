@@ -1,0 +1,11 @@
+Intent Display Name,Language,Phrase
+PlaceHold,en,Place a hold
+,,Put a hold on (The Great Gatsby)[@BookTitle, book_id]
+,,Hold (To Kill a Mockingbird)[@BookTitle, book_id] for me
+,,I want to hold (1984)[@BookTitle, book_id]
+,,Reserve (Pride and Prejudice)[@BookTitle, book_id]
+,,Can you hold (The Great Gatsby)[@BookTitle, book_id]?
+,,Put (Harry Potter)[@BookTitle, book_id] on hold
+,,Hold this book
+,,I'd like to place a hold
+,,Reserve this book

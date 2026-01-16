@@ -1,0 +1,11 @@
+Intent Display Name,Language,Phrase
+FindBook,en,Find (The Great Gatsby)[@BookTitle, book_title]
+,,Do you have (To Kill a Mockingbird)[@BookTitle, book_title]?
+,,I'm looking for (1984)[@BookTitle, book_title]
+,,Where is (Pride and Prejudice)[@BookTitle, book_title]?
+,,Is (The Great Gatsby)[@BookTitle, book_title] available?
+,,Can I get (Harry Potter)[@BookTitle, book_title]?
+,,I need (The Lord of the Rings)[@BookTitle, book_title]
+,,Show me (The Hobbit)[@BookTitle, book_title]
+,,Get me (The Catcher in the Rye)[@BookTitle, book_title]
+,,Locate (The Great Gatsby)[@BookTitle, book_title]
