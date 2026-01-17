@@ -103,6 +103,21 @@ class LibraryService:
         """Get detailed information about a book."""
         response = self._make_request(f'books/{book_id}', 'GET')
         return response.get('book', {})
+
+    # Helper to get shared mock data
+    def _get_mock_books(self):
+        return [
+            {'id': '1', 'title': 'The Great Gatsby', 'author': 'F. Scott Fitzgerald', 'isbn': '9780743273565', 'genre': 'Fiction', 'availability': 'Available', 'cover_image': 'https://example.com/gatsby.jpg'},
+            {'id': '2', 'title': 'To Kill a Mockingbird', 'author': 'Harper Lee', 'isbn': '9780061120084', 'genre': 'Fiction', 'availability': 'Available', 'cover_image': 'https://example.com/mockingbird.jpg'},
+            {'id': '3', 'title': 'Harry Potter and the Sorcerer\'s Stone', 'author': 'J.K. Rowling', 'isbn': '9780590353427', 'genre': 'Fantasy', 'availability': 'Checked Out', 'cover_image': 'https://example.com/hp1.jpg'},
+            {'id': '4', 'title': 'Harry Potter and the Chamber of Secrets', 'author': 'J.K. Rowling', 'isbn': '9780439064873', 'genre': 'Fantasy', 'availability': 'Available', 'cover_image': 'https://example.com/hp2.jpg'},
+            {'id': '5', 'title': 'The Hobbit', 'author': 'J.R.R. Tolkien', 'isbn': '9780547928227', 'genre': 'Fantasy', 'availability': 'Available', 'cover_image': 'https://example.com/hobbit.jpg'},
+            {'id': '6', 'title': '1984', 'author': 'George Orwell', 'isbn': '9780451524935', 'genre': 'Dystopian', 'availability': 'Available', 'cover_image': 'https://example.com/1984.jpg'},
+            {'id': '7', 'title': 'Pride and Prejudice', 'author': 'Jane Austen', 'isbn': '9780141439518', 'genre': 'Romance', 'availability': 'Available', 'cover_image': 'https://example.com/pride.jpg'},
+            {'id': '8', 'title': 'Python Crash Course', 'author': 'Eric Matthes', 'isbn': '9781593279288', 'genre': 'Technology', 'availability': 'Available', 'cover_image': 'https://example.com/python.jpg'},
+            {'id': '9', 'title': 'Introduction to Algorithms', 'author': 'Thomas H. Cormen', 'isbn': '9780262033848', 'genre': 'Technology', 'availability': 'Reference Only', 'cover_image': 'https://example.com/algo.jpg'},
+            {'id': '10', 'title': 'Dune', 'author': 'Frank Herbert', 'isbn': '9780441172719', 'genre': 'Sci-Fi', 'availability': 'Checked Out', 'cover_image': 'https://example.com/dune.jpg'}
+        ]
     
     def authenticate_user(self, user_id: str, password: str) -> Dict[str, Any]:
         """Authenticate user and return user information."""
@@ -220,30 +235,44 @@ class LibraryService:
     
     def _get_mock_response(self, endpoint: str, method: str, data: Dict = None) -> Dict[str, Any]:
         """Generate mock responses for development/testing."""
-        # Mock book search
+        # Mock book details
+        if endpoint.startswith('books/') and 'search' not in endpoint:
+            book_id = endpoint.split('/')[-1]
+            all_books = self._get_mock_books()
+            for book in all_books:
+                if book['id'] == book_id:
+                    return {'book': book}
+            return {'book': {}}
+
         if 'books/search' in endpoint:
-            return {
-                'books': [
-                    {
-                        'id': '1',
-                        'title': 'The Great Gatsby',
-                        'author': 'F. Scott Fitzgerald',
-                        'isbn': '9780743273565',
-                        'genre': 'Fiction',
-                        'availability': 'Available',
-                        'cover_image': 'https://example.com/covers/gatsby.jpg'
-                    },
-                    {
-                        'id': '2',
-                        'title': 'To Kill a Mockingbird',
-                        'author': 'Harper Lee',
-                        'isbn': '9780061120084',
-                        'genre': 'Fiction',
-                        'availability': 'Available',
-                        'cover_image': 'https://example.com/covers/mockingbird.jpg'
-                    }
-                ]
-            }
+            # Enhanced Mock Database
+            all_books = self._get_mock_books()
+            
+            # Simple Filter Logic
+            query_title = data.get('title', '').lower()
+            query_author = data.get('author', '').lower()
+            query_genre = data.get('genre', '').lower()
+            
+            filtered_books = []
+            for book in all_books:
+                # If a filter is provided, check if it matches. 
+                # If multiple filters are provided, strict AND match (or lenient OR, let's do lenient for demo)
+                match = True
+                if query_title and query_title not in book['title'].lower():
+                    match = False
+                if query_author and match and query_author not in book['author'].lower():
+                    match = False
+                if query_genre and match and query_genre not in book['genre'].lower():
+                    match = False
+                
+                # If no filters provided, return everything (or logic to return none? usually search returns all/popular)
+                if not any([query_title, query_author, query_genre]):
+                    match = True
+                    
+                if match:
+                    filtered_books.append(book)
+                    
+            return {'books': filtered_books}
         
         # Mock authentication
         if 'auth/login' in endpoint:
@@ -287,14 +316,16 @@ class LibraryService:
                 return {
                     'success': True,
                     'hold_id': 'hold123',
-                    'title': 'To Kill a Mockingbird'
+                    # In our demo flow, 'book_id' often contains the title string
+                    'title': data.get('book_id', 'Requested Book')
                 }
         
         # Mock renewals
         if 'renew' in endpoint:
             return {
                 'success': True,
-                'title': 'The Great Gatsby',
+                # Use the book_id/title passed in request
+                'title': data.get('book_id', 'Requested Book'),
                 'new_due_date': (datetime.now() + timedelta(days=21)).strftime('%Y-%m-%d')
             }
         

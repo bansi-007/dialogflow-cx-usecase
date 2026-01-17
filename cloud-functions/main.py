@@ -128,8 +128,44 @@ def route_request(
     if tag == 'auth-webhook' or tag == 'auth_webhook':
         return handle_authentication(parameters, session_info)
     
+    # Extract user_id for account-specific tags
+    user_id = session_info.get('parameters', {}).get('user_id') or parameters.get('user_id')
+    
+    # helper for login redirect
+    # Modified to save state if present
+    def create_login_redirect(tag_name):
+        return {
+            'message': "I need to verify your account first. Please log in to complete this action.",
+            'parameters': {
+                'pending_tag': tag_name,
+                # Persist key parameters that might be needed
+                'book_id': list(parameters.values())[0] if parameters else None, 
+                # ^ crude, ideally we pass specific params. But for now session persistence usually handles the rest.
+                # Actually, Dialogflow keeps session params. We just need to mark the TAG.
+            },
+            'redirect_to_flow': 'Authentication Flow'
+        }
+
+    if tag == 'account-checkouts':
+        return handle_checkouts(user_id, parameters) if user_id else create_login_redirect('account-checkouts')
+        
+    if tag == 'account-renew':
+        return handle_renewal(user_id, parameters) if user_id else create_login_redirect('account-renew')
+        
+    if tag == 'account-holds':
+        return handle_holds(user_id, parameters) if user_id else create_login_redirect('account-holds')
+        
+    if tag == 'account-fines':
+        return handle_fines(user_id, parameters) if user_id else create_login_redirect('account-fines')
+
     if tag == 'reservations-webhook':
         return handle_reservations(intent_name, parameters, session_info)
+        
+    if tag == 'book-search':
+        return handle_book_search(parameters, session_info)
+        
+    if tag == 'get-book-details':
+        return handle_book_details(parameters)
         
     if tag == 'help-faq-webhook':
         return handle_help_faq(intent_name, parameters, session_info)
@@ -324,6 +360,44 @@ def handle_account_management(
         }
 
 
+def handle_book_details(parameters: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle request for specific book details (e.g. from list selection)."""
+    try:
+        # Dialogflow sends 'selected_item_id' in list events
+        book_id = parameters.get('selected_item_id')
+        if not book_id:
+             return {'message': "I couldn't identify which book you selected.", 'parameters': {}}
+
+        # In a real app, we'd fetch specific ID.
+        # For mock, search_books returns list with IDs, we can't search by ID directly yet in 'search_books' 
+        # but let's assume get_book_details in library_service works or we add it. 
+        # Actually library_service has get_book_details(book_id).
+        
+        book = library_service.get_book_details(book_id)
+        if not book:
+            # Fallback if ID lookup fails (or mock doesn't match)
+            return {'message': "I couldn't find details for that book.", 'parameters': {}}
+
+        return {
+            'message': f"Here are the details for '{book.get('title')}':",
+            'rich_response': create_card_response(
+                title=book.get('title', 'Unknown'),
+                subtitle=f"By {book.get('author', 'Unknown Author')}",
+                text=f"ISBN: {book.get('isbn', 'N/A')}\nGenre: {book.get('genre', 'N/A')}\nAvailability: {book.get('availability', 'Unknown')}",
+                image_url=book.get('cover_image', ''),
+                buttons=[
+                    # IMPORTANT: passing the TITLE so PlaceHold intent can pick it up if they click or say it
+                    {'text': f"Place Hold on {book.get('title')}", 'postback': f"Place a hold on {book.get('title')}"}
+                ]
+            ),
+             # We set 'book_title' param so context carries over if they just say "Place a hold"
+            'parameters': {'book_title': book.get('title'), 'book_id': book.get('id')}
+        }
+    except Exception as e:
+        logger.error(f"Error getting book details: {str(e)}")
+        return {'message': "Error retrieving book details.", 'parameters': {}}
+
+
 def handle_checkouts(user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """Handle viewing and managing checkouts."""
     try:
@@ -407,20 +481,30 @@ def handle_renewal(user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
 def handle_holds(user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """Handle viewing and managing holds."""
     try:
+        # Determine action
+        # If the user provided a book, they likely want to PLACE a hold
+        # (unless we explicitly support cancelling specific books, which would need a 'cancel' action param)
+        book_identifier = parameters.get('book_id') or parameters.get('book_title')
         action = parameters.get('hold_action', 'view')
         
+        if book_identifier and action == 'view':
+            action = 'place'
+        
         if action == 'place':
-            book_id = parameters.get('book_id')
+            book_id = book_identifier
             if not book_id:
                 return {
                     'message': "Which book would you like to place on hold?",
                     'parameters': {}
                 }
             
+            # Use provided hold_id if available, otherwise just place hold
             result = library_service.place_hold(user_id, book_id)
             if result.get('success'):
+                # Check for smart resume context
+                message = f"Successfully placed a hold on '{result.get('title')}'. You'll be notified when it's available."
                 return {
-                    'message': f"Successfully placed a hold on '{result.get('title')}'. You'll be notified when it's available.",
+                    'message': message,
                     'parameters': {'hold_result': result}
                 }
             else:
@@ -844,7 +928,7 @@ def handle_authentication(parameters: Dict[str, Any], session_info: Dict[str, An
                     ]
                 )
                 
-                return {
+                response = {
                     'message': f"Welcome back, {result.get('name', 'User')}! Here is your dashboard.",
                     'rich_response': card_response,
                     'parameters': {
@@ -855,6 +939,33 @@ def handle_authentication(parameters: Dict[str, Any], session_info: Dict[str, An
                     },
                     'suggestions': ['Search books', 'View checkouts']
                 }
+
+                # SMART RESUME LOGIC
+                # Check if there was a pending action before login
+                pending_tag = parameters.get('pending_tag') or session_info.get('parameters', {}).get('pending_tag')
+                if pending_tag:
+                    logger.info(f"Checking smart resume for pending tag: {pending_tag}")
+                    
+                    # Merge session params with current params to ensure we have all context (like book_id)
+                    combined_params = {**session_info.get('parameters', {}), **parameters}
+                    combined_params['user_id'] = result.get('user_id') # Ensure authenticated user_id is used
+                    
+                    # Dispatch to the pending handler
+                    if pending_tag == 'account-holds':
+                        follow_up_response = handle_holds(result.get('user_id'), combined_params)
+                        # Prepend a success login message to the action response
+                        follow_up_response['message'] = f"Welcome back, {result.get('name', 'User')}! \n\n" + follow_up_response.get('message', '')
+                        # Clear pending tag
+                        follow_up_response['parameters']['pending_tag'] = None
+                        return follow_up_response
+                        
+                    elif pending_tag == 'account-renew':
+                        follow_up_response = handle_renewal(result.get('user_id'), combined_params)
+                        follow_up_response['message'] = f"Welcome back, {result.get('name', 'User')}! \n\n" + follow_up_response.get('message', '')
+                        follow_up_response['parameters']['pending_tag'] = None
+                        return follow_up_response
+
+                return response
             except Exception:
                 # Fallback if account info fetch fails
                 return {
